@@ -1,4 +1,5 @@
 import json
+import re
 import time
 import datetime
 import subprocess
@@ -7,6 +8,18 @@ from typing import Any
 from utils import (
     container_exec, get_outer_container_for, get_user_id, start_challenge, workspace_run,
 )
+
+def parse_docker_timestamp(value):
+    # docker emits RFC3339 timestamps with nanosecond precision and a Z
+    # suffix, neither of which datetime.fromisoformat accepts on Python 3.10
+    value = value.replace("Z", "+00:00")
+    main, dot, fraction = value.partition(".")
+    if dot:
+        fraction, sep, tz = fraction.partition("+")
+        # Python 3.10 fromisoformat only accepts exactly 3 or 6 fraction digits
+        fraction = (fraction + "000000")[:6]
+        value = f"{main}.{fraction}{sep}{tz}" if sep else f"{main}.{fraction}"
+    return datetime.datetime.fromisoformat(value)
 
 def inspect_container(username) -> dict[str, Any]:
     container_name = f"user_{get_user_id(username)}"
@@ -29,9 +42,9 @@ def validate_current_container(username, dojo, module, challenge, attempts=30, m
             if mode is not None:
                 assert labels["dojo.mode"] == mode
             if before is not None:
-                assert before > datetime.datetime.fromisoformat(container["Created"])
+                assert before > parse_docker_timestamp(container["Created"])
             if after is not None:
-                assert after < datetime.datetime.fromisoformat(container["Created"])
+                assert after < parse_docker_timestamp(container["Created"])
             return True
         except:
             time.sleep(1)
@@ -67,7 +80,7 @@ def validate_restart(username, mode):
         labels["dojo.module_id"],
         labels["dojo.challenge_id"],
         mode = labels["dojo.mode"] if mode == "current" else mode,
-        after = datetime.datetime.fromisoformat(container["Created"]) # Should be created after the old container.
+        after = parse_docker_timestamp(container["Created"]) # Should be created after the old container.
     ), f"Failed to restart (\"dojo restart\" exited {restart_error[0]}, stdout={restart_error[1]!r}, stderr={restart_error[2]!r}):\nOriginal Container:\n{container}\nNewest Container:\n{inspect_container(username)}"
 
 def test_whoami(random_user, welcome_dojo):
