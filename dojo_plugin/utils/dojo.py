@@ -10,6 +10,7 @@ import pathlib
 
 import yaml
 import requests
+import markupsafe
 from schema import Schema, Optional, Regex, Or, Use, SchemaError
 from flask import abort, g
 from sqlalchemy.orm.exc import NoResultFound
@@ -173,7 +174,7 @@ def dojo_from_dir(dojo_dir, *, dojo=None):
     assert dojo_yml_path.exists(), "Missing file: `dojo.yml`"
 
     for path in dojo_dir.rglob("**"):
-        assert dojo_dir == path or dojo_dir in path.resolve().parents, f"Error: symlink `{path}` references path outside of the dojo"
+        assert dojo_dir == path or dojo_dir in path.resolve().parents, f"Error: symlink `{markupsafe.escape(path)}` references path outside of the dojo"
 
     data_raw = yaml.safe_load(dojo_yml_path.read_text())
     data = load_dojo_subyamls(data_raw, dojo_dir)
@@ -183,7 +184,9 @@ def dojo_from_spec(data, *, dojo_dir=None, dojo=None):
     try:
         dojo_data = DOJO_SPEC.validate(data)
     except SchemaError as e:
-        raise AssertionError(e)  # TODO: this probably shouldn't be re-raised as an AssertionError
+        # SchemaError messages embed user-supplied dojo spec content, which ends
+        # up rendered by the frontend; escape it like the upstream dojo does
+        raise AssertionError(markupsafe.escape(e))
 
     def assert_one(query, error_message):
         try:
