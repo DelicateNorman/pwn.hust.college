@@ -5,7 +5,6 @@ import math
 import pytz
 import json
 
-import redis
 
 from flask import url_for, abort, current_app
 from flask_restx import Namespace, Resource
