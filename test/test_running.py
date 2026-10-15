@@ -9,7 +9,10 @@ import pytest
 
 #pylint:disable=redefined-outer-name,use-dict-literal,missing-timeout,unspecified-encoding,consider-using-with,unused-argument
 
-from utils import TEST_DOJOS_LOCATION, PROTO, HOST, login, dojo_run, workspace_run, create_dojo_yml
+from utils import (
+    TEST_DOJOS_LOCATION, PROTO, HOST, login, dojo_run, workspace_run, create_dojo_yml,
+    db_sql, db_sql_one, get_user_id, start_challenge,
+)
 
 def get_flag(user):
     return workspace_run("cat /flag", user=user, root=True).stdout
@@ -26,23 +29,6 @@ def get_challenge_id(session, dojo, module, challenge):
 
     assert challenge_id, "Expected to find a challenge ID for this specific challenge"
     return challenge_id
-
-
-def start_challenge(dojo, module, challenge, practice=False, *, session):
-    start_challenge_json = dict(dojo=dojo, module=module, challenge=challenge, practice=practice)
-    response = session.post(f"{PROTO}://{HOST}/pwncollege_api/v1/docker", json=start_challenge_json)
-    assert response.status_code == 200, f"Expected status code 200, but got {response.status_code}"
-    assert response.json()["success"], f"Failed to start challenge: {response.json()['error']}"
-
-def db_sql(sql):
-    db_result = dojo_run("db", input=sql)
-    return db_result.stdout
-
-def db_sql_one(sql):
-    return db_sql(sql).split()[1]
-
-def get_user_id(user_name):
-    return int(db_sql_one(f"SELECT id FROM users WHERE name = '{user_name}'"))
 
 @pytest.mark.parametrize("endpoint", ["/", "/dojos", "/login", "/register"])
 def test_unauthenticated_return_200(endpoint):
