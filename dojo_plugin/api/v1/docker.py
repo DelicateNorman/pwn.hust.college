@@ -6,6 +6,7 @@ import re
 import traceback
 
 import docker
+import redis
 from flask import request
 from flask_restx import Namespace, Resource
 from CTFd.utils.user import get_current_user, is_admin
@@ -21,6 +22,8 @@ from ...utils.workspace import exec_run
 docker_namespace = Namespace(
     "docker", description="Endpoint to manage docker containers"
 )
+
+CHALLENGE_START_LOCK_TIMEOUT = 30
 
 
 def start_challenge(user, dojo_challenge, practice):
@@ -231,6 +234,15 @@ class RunDocker(Resource):
         if not dojo_challenge.visible() and not dojo.is_admin():
             return {"success": False, "error": "Invalid challenge"}
 
+        redis_client = redis.from_url(os.environ["REDIS_URL"])
+        lock = redis_client.lock(
+            f"user.{user.id}.docker.lock",
+            timeout=CHALLENGE_START_LOCK_TIMEOUT,
+        )
+        # CTFd 3.6.0 pins redis-py 4.5.5, which has no raise_on_release_error;
+        # release manually so an expired lock cannot discard the start result
+        if not lock.acquire(blocking=False):
+            return {"success": False, "error": f"Challenge is already starting; try again in {CHALLENGE_START_LOCK_TIMEOUT} seconds"}
         try:
             start_challenge(user, dojo_challenge, practice)
         except RuntimeError as e:
@@ -241,6 +253,11 @@ class RunDocker(Resource):
             print(f"ERROR: Docker failed for {user.id}: {e}", file=sys.stderr, flush=True)
             traceback.print_exc(file=sys.stderr)
             return {"success": False, "error": "Docker failed"}
+        finally:
+            try:
+                lock.release()
+            except redis.exceptions.LockNotOwnedError:
+                pass
         return {"success": True}
 
 
