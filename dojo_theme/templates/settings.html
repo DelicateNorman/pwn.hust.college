@@ -66,8 +66,8 @@
             <div class="form-group">
               <b><label for="hidden">可见性</label></b>
               <select class="form-control custom-select" id="hidden" name="hidden" value="{{ user.hidden }}">
-                <option value="False" {{ "selected" if not user.hidden else "" }}>Visible</option>
-                <option value="True" {{ "selected" if user.hidden else "" }}>Hidden</option>
+                <option value="False" {{ "selected" if not user.hidden else "" }}>可见</option>
+                <option value="True" {{ "selected" if user.hidden else "" }}>隐藏</option>
               </select>
             </div>
 
@@ -127,7 +127,7 @@
             </div>
 
             <div class="form-group text-right">
-              <input class="btn btn-md btn-primary btn-outlined" id="_submit" name="_submit" type="submit" value="Add">
+              <input class="btn btn-md btn-primary btn-outlined" id="_submit" name="_submit" type="submit" value="添加">
             </div>
           </form>
         </div>
@@ -137,7 +137,7 @@
           {% if not discord_user %}
           <div class="text-center">
             <br>
-            <a href="/discord/connect" class="btn btn-primary">Connect Discord Account</a>
+            <a href="/discord/connect" class="btn btn-primary">连接到Discord</a>
           </div>
           {% else %}
           <div class="text-center">
@@ -193,13 +193,13 @@
 
           {% if tokens %}
           <hr>
-          <h4 class="text-center">Active Tokens</h4>
+          <h4 class="text-center">现有访问令牌</h4>
           <table class="table table-striped">
             <thead>
               <tr>
-                <td class="text-center"><b>Created</b></td>
-                <td class="text-center"><b>Expiration</b></td>
-                <td class="text-center"><b>Delete</b></td>
+                <td class="text-center"><b>创建时间</b></td>
+                <td class="text-center"><b>过期时间</b></td>
+                <td class="text-center"><b>删除</b></td>
               </tr>
             </thead>
             <tbody>
