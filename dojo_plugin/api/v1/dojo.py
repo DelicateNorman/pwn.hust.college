@@ -86,7 +86,7 @@ def create_dojo(user, repository_type, repository, public_key, private_key):
         traceback.print_exc(file=sys.stderr)
         print(str(e.stderr), file=sys.stderr, flush=True)
         deploy_url = f"https://{repository_type}.com/{repository}/settings/keys"
-        return {"success": False, "error": f"Failed to clone: add a deploy key at {deploy_url}"}, 400
+        return {"success": False, "error": "Failed to clone: add a deploy key", "deploy_url": deploy_url}, 400
 
     except IntegrityError as e:
         return {"success": False, "error": DOJO_EXISTS}, 400
