@@ -3,6 +3,7 @@ import sys
 import subprocess
 import pathlib
 import re
+import threading
 import traceback
 
 import docker
@@ -238,11 +239,30 @@ class RunDocker(Resource):
         lock = redis_client.lock(
             f"user.{user.id}.docker.lock",
             timeout=CHALLENGE_START_LOCK_TIMEOUT,
+            # the renewal thread below extends this lock from another thread,
+            # which the default thread-local token storage does not allow
+            thread_local=False,
         )
         # CTFd 3.6.0 pins redis-py 4.5.5, which has no raise_on_release_error;
         # release manually so an expired lock cannot discard the start result
         if not lock.acquire(blocking=False):
             return {"success": False, "error": f"Challenge is already starting; try again in {CHALLENGE_START_LOCK_TIMEOUT} seconds"}
+
+        # Renew the lock while the start flow runs so a slow start cannot
+        # outlive the timeout and admit a concurrent request; the lock still
+        # expires CHALLENGE_START_LOCK_TIMEOUT after the worker dies
+        stop_renewal = threading.Event()
+
+        def renew_lock():
+            while not stop_renewal.wait(CHALLENGE_START_LOCK_TIMEOUT // 3):
+                try:
+                    lock.extend(CHALLENGE_START_LOCK_TIMEOUT, replace_ttl=True)
+                except redis.exceptions.LockError:
+                    print(f"ERROR: lost challenge start lock for {user.id}", file=sys.stderr, flush=True)
+                    return
+
+        renewal = threading.Thread(target=renew_lock, daemon=True)
+        renewal.start()
         try:
             start_challenge(user, dojo_challenge, practice)
         except RuntimeError as e:
@@ -254,6 +274,8 @@ class RunDocker(Resource):
             traceback.print_exc(file=sys.stderr)
             return {"success": False, "error": "Docker failed"}
         finally:
+            stop_renewal.set()
+            renewal.join(timeout=CHALLENGE_START_LOCK_TIMEOUT)
             try:
                 lock.release()
             except redis.exceptions.LockNotOwnedError:
