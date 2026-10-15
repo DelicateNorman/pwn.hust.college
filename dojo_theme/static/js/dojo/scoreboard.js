@@ -5,7 +5,7 @@ function loadScoreboard(duration, page) {
 
     const endpoint = `/pwncollege_api/v1/scoreboard/${dojo}/${module}/${duration}/${page}`;
     scoreboard.empty();
-    message = "Loading."
+    let message = "Loading."
     scoreboard.html(`<td colspan=6>${message}</td>`);
     setTimeout(function loadmsg() {
         if (scoreboard.html().includes(message)) {
