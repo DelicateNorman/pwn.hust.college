@@ -6,7 +6,7 @@
 
 先在网页上生成 API Token:登录后进入 **设置 → 访问令牌**,创建一枚 Token。之后在每个请求中携带两个请求头:
 
-```
+```text
 Authorization: Token <你的Token>
 Content-Type: application/json
 ```
@@ -59,30 +59,30 @@ curl -X POST -H "Authorization: Token $TOKEN" -H "Content-Type: application/json
 
 ## 注意事项
 
-**容器行为**
+### 容器行为
 
 - 每个用户同一时间只有一个题目容器,启动新题目会自动销毁旧容器;`/home/hacker` 目录在题目之间持久保留。
 - 启动接口约一秒内返回成功,但容器初始化需要约 20 秒,之后 SSH 才能连接。连接失败时稍等重试即可。
 - 容器闲置约 6 小时后自动销毁。
 
-**SSH 连接**
+### SSH 连接
 
 - 建议始终使用 `ssh -tt` 强制分配终端:部分题目会校验 `SSH_TTY` 环境变量,无终端时会拒绝运行。
 - 题目验证程序的路径以 `/challenge/DESCRIPTION.md` 的说明为准,常见为 `/challenge/solve`,部分道馆(如 git)为 `/challenge/check`。
 
-**公钥管理**
+### 公钥管理
 
 - 平台每个账号只保存**一把** SSH 公钥。上传新公钥时如果返回 `"SSH Key already in use"`,含义是账号已有公钥(而不是这把钥匙被别人占用),需要先删除旧的再上传。
 - 上传时平台会去掉公钥行尾的注释部分,因此删除时也要传入不含注释的值,即公钥行 `cut -d' ' -f1,2` 的结果。
 - 公钥也可以在网页 **设置 → SSH 公钥** 中查看和删除;更换公钥前建议先记录原值,用完恢复。删除旧公钥到上传新公钥之间,SSH 访问会短暂中断。
 
-**道馆与题目发现**
+### 道馆与题目发现
 
 - `GET /pwncollege_api/v1/dojo/<道馆>/modules` 接口当前返回 500,模块列表请从道馆页面(如 `https://pwn.cse.hust.edu.cn/welcome/`)的链接中获取;全部道馆可从 `https://pwn.cse.hust.edu.cn/dojos` 页面发现。
 - 部分道馆有前置道馆要求,其页面不显示模块链接并会提示前置道馆,需先完成前置道馆。
 - 过滤已完成题目时,请以 `solves` 接口返回的数字 `challenge_id` 为准并实时查询:题目可能随模块调整而重新组织,历史清单会过期。
 
-**flag 格式**
+### flag 格式
 
 flag 为 `pwn.college{...}` 形式的字符串,不含空白字符,可直接放入 JSON 提交。
 
