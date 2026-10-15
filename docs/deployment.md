@@ -82,6 +82,38 @@ dojo compose down
 dojo update
 ```
 
+## 数据库凭据与端口 (Database Credentials and Port)
+
+数据库凭据通过环境变量注入，默认值保持为初始部署的取值，可以在 `data/config.env` 中覆盖（compose 以 `--env-file` 方式读取该文件）：
+
+- `MYSQL_ROOT_PASSWORD`（默认 `ctfd`）
+- `MYSQL_USER`（默认 `ctfd`）
+- `MYSQL_PASSWORD`（默认 `ctfd`）
+- `MYSQL_DATABASE`（默认 `ctfd`）
+
+注意：`DATABASE_URL` 由上述变量拼接，若密码包含 `:`、`@`、`/` 等特殊字符，需要做 URL 百分号编码。
+
+MariaDB 端口 `13306` 仅绑定在宿主机回环地址（`127.0.0.1:13306:3306`），供本机维护使用，不会暴露到外部接口。平台内部服务（CTFd、exporter 等）均通过 compose 内部网络访问数据库，不经过该端口。
+
+### 已有部署的密码轮换
+
+`MYSQL_*` 环境变量只在数据库卷首次初始化时生效。对已有 `data/mysql` 卷的部署，按以下步骤轮换密码：
+
+```sh
+# 1. 在数据库中修改密码（用旧密码连接）
+docker exec -it db mysql -p -e "ALTER USER 'ctfd'@'%' IDENTIFIED BY '<新密码>'; FLUSH PRIVILEGES;"
+
+# 2. 写入新的部署配置
+#    在宿主机 dojo 目录的 data/config.env 中加入：
+#    MYSQL_PASSWORD=<新密码>
+
+# 3. 重建受影响的服务
+dojo compose up -d ctfd db
+
+# 4. 同步更新 mysql exporter 的凭据文件（如已配置）：
+#    monitoring/mysql-exporters/.my.cnf
+```
+
 ## 更新 (Updating)
 
 当更新你的 dojo 部署时，在 `dojo` 源码目录下，官方只支持一种方法：
