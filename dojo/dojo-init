@@ -63,6 +63,13 @@ for credential in MYSQL_PASSWORD MYSQL_ROOT_PASSWORD; do
     fi
 done
 
+# Regenerate the mysqld-exporter credentials from the resolved config so the
+# exporter keeps working across rotations (mounted via docker-compose.yml)
+mkdir -p $DOJO_DIR/data/mysql-exporter
+EXPORTER_PASSWORD="$(grep -oP '^MYSQL_ROOT_PASSWORD=\K.*' $DOJO_DIR/data/.config.env)"
+printf '[client]\nuser=root\npassword=%s\n' "$EXPORTER_PASSWORD" > $DOJO_DIR/data/mysql-exporter/.my.cnf
+chmod 600 $DOJO_DIR/data/mysql-exporter/.my.cnf
+
 mv $DOJO_DIR/data/.config.env $DOJO_DIR/data/config.env
 . $DOJO_DIR/data/config.env
 

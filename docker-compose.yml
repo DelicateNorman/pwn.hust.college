@@ -306,7 +306,7 @@ services:
     ports:
       - "9104:9104"
     volumes:
-      - ./monitoring/mysql-exporter/.my.cnf:/.my.cnf:ro
+      - ./data/mysql-exporter/.my.cnf:/.my.cnf:ro
     networks:
       - user_network
     depends_on:

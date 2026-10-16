@@ -91,6 +91,8 @@ dojo update
 
 密码只允许使用字母、数字与 `.` `_` `-` `~`（RFC 3986 unreserved 字符）：同一值会同时作为 MariaDB 的环境变量和 CTFd `DATABASE_URL` 的一部分，包含保留字符会因 URL 编码歧义导致两端密码不一致，`dojo-init` 会直接拒绝这类值并提示。
 
+mysqld-exporter 的凭据文件 `data/mysql-exporter/.my.cnf` 由 `dojo-init` 在每次启动时按当前密码自动重建（compose 从 `data/` 挂载，不进入 git 目录）。
+
 MariaDB 端口 `13306` 仅绑定在宿主机回环地址（`127.0.0.1:13306:3306`），供本机维护使用，不会暴露到外部接口。平台内部服务（CTFd、exporter 等）均通过 compose 内部网络访问数据库，不经过该端口。
 
 **Docker Engine 版本要求**：Docker Engine 28.0.0 之前的版本存在已知风险——同一二层（L2）网络内的其他主机仍可能直接访问绑定到回环地址的发布端口（28.0.0 起默认网络加固修复了该行为，参见 Docker 官方博客 [Hardening Container Networking by Default](https://www.docker.com/blog/docker-engine-28-hardening-container-networking-by-default)）。生产部署请使用 Docker Engine ≥ 28.0.0，或确保宿主机处于受信任的网络分段。
@@ -110,8 +112,8 @@ docker exec -it db mysql -p -e "ALTER USER 'ctfd'@'%' IDENTIFIED BY '<新密码>
 # 3. 重建受影响的服务
 dojo compose up -d ctfd db
 
-# 4. 同步更新 mysql exporter 的凭据文件（如已配置）：
-#    monitoring/mysql-exporters/.my.cnf
+# 4. mysql exporter 的凭据文件（data/mysql-exporter/.my.cnf）由 dojo-init
+#    在容器启动时自动生成，重启 dojo 容器即自动同步，无需手工修改
 ```
 
 ## 更新 (Updating)
