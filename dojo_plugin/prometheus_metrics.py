@@ -1,4 +1,4 @@
-from prometheus_client import Counter, Histogram, Gauge, Summary
+from prometheus_client import Counter, Histogram, Gauge
 from flask import request, g
 import time
 

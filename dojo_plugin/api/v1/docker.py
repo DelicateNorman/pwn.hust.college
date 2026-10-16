@@ -8,7 +8,7 @@ import traceback
 import docker
 from flask import request
 from flask_restx import Namespace, Resource
-from CTFd.utils.user import get_current_user, is_admin
+from CTFd.utils.user import get_current_user
 from CTFd.utils.decorators import authed_only
 
 from ...config import HOST_DATA_PATH, INTERNET_FOR_ALL, SECCOMP, USER_FIREWALL_ALLOWED
