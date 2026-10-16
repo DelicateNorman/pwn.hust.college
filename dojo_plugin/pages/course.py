@@ -345,7 +345,7 @@ def download_all_grades(dojo):
         assessments = dojo.course.get("assessments", [])
 
         fields = ["student", "user", "letter", "overall"]
-        fields.extend([re.sub("[^a-z0-9\-]", "", re.sub("\s+", "-", assessment_name(dojo, assessment).lower()))
+        fields.extend([re.sub(r"[^a-z0-9\-]", "", re.sub(r"\s+", "-", assessment_name(dojo, assessment).lower()))
                        for assessment in assessments])
         yield ",".join(fields) + "\n"
 
