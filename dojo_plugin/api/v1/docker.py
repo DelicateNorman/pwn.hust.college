@@ -245,7 +245,13 @@ class RunDocker(Resource):
         )
         # CTFd 3.6.0 pins redis-py 4.5.5, which has no raise_on_release_error;
         # release manually so an expired lock cannot discard the start result
-        if not lock.acquire(blocking=False):
+        try:
+            acquired = lock.acquire(blocking=False)
+        except redis.exceptions.RedisError as e:
+            # fail closed: without a reachable redis there is no mutual exclusion
+            print(f"ERROR: challenge start lock unreachable for {user.id}: {e}", file=sys.stderr, flush=True)
+            return {"success": False, "error": "Docker failed"}
+        if not acquired:
             return {"success": False, "error": f"Challenge is already starting; try again in {CHALLENGE_START_LOCK_TIMEOUT} seconds"}
 
         # Renew the lock while the start flow runs so a slow start cannot
@@ -257,9 +263,13 @@ class RunDocker(Resource):
             while not stop_renewal.wait(CHALLENGE_START_LOCK_TIMEOUT // 3):
                 try:
                     lock.extend(CHALLENGE_START_LOCK_TIMEOUT, replace_ttl=True)
-                except redis.exceptions.LockError:
+                except redis.exceptions.LockNotOwnedError:
+                    # ownership is unrecoverable once the key expired or was retaken
                     print(f"ERROR: lost challenge start lock for {user.id}", file=sys.stderr, flush=True)
                     return
+                except redis.exceptions.RedisError:
+                    # transient connection/timeout errors: retry on the next tick
+                    print(f"WARNING: failed to renew challenge start lock for {user.id}", file=sys.stderr, flush=True)
 
         renewal = threading.Thread(target=renew_lock, daemon=True)
         renewal.start()
