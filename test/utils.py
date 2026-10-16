@@ -94,4 +94,33 @@ def workspace_run(cmd, *, user, root=False, **kwargs):
         args += [ "-s" ]
     args += [ user ]
     return dojo_run(*args, input=cmd, check=True, **kwargs)
+
+def container_exec(*args, container=CONTAINER_NAME, **kwargs):
+    kwargs.update(stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    return subprocess.run(
+        [shutil.which("docker"), "exec", "-i", container, *args],
+        check=kwargs.pop("check", True), **kwargs
+    )
+
+def get_outer_container_for(container_name):
+    result = container_exec("docker", "ps", "--format", "{{.Names}}")
+    if container_name in result.stdout.strip().split("\n"):
+        return CONTAINER_NAME
+    raise RuntimeError(f"container {container_name} not found")
+
+def db_sql(sql):
+    db_result = dojo_run("db", input=sql)
+    return db_result.stdout
+
+def db_sql_one(sql):
+    return db_sql(sql).split()[1]
+
+def get_user_id(user_name):
+    return int(db_sql_one(f"SELECT id FROM users WHERE name = '{user_name}'"))
+
+def start_challenge(dojo, module, challenge, practice=False, *, session):
+    start_challenge_json = dict(dojo=dojo, module=module, challenge=challenge, practice=practice)
+    response = session.post(f"{PROTO}://{HOST}/pwncollege_api/v1/docker", json=start_challenge_json)
+    assert response.status_code == 200, f"Expected status code 200, but got {response.status_code}"
+    assert response.json()["success"], f"Failed to start challenge: {response.json()['error']}"
     

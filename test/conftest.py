@@ -45,3 +45,12 @@ def example_dojo(admin_session):
 @pytest.fixture(scope="session")
 def simple_award_dojo(admin_session):
     return create_dojo_yml(open(TEST_DOJOS_LOCATION / "simple_award_dojo.yml").read(), session=admin_session)
+
+@pytest.fixture(scope="session")
+def welcome_dojo(admin_session):
+    try:
+        rid = create_dojo("github", "pwncollege/welcome-dojo", session=admin_session)
+    except AssertionError:
+        rid = "welcome"
+    make_dojo_official(rid, admin_session)
+    return rid
