@@ -2,6 +2,13 @@ location /internal/ {
     internal;
     set $redirect_uri "$upstream_http_redirect_uri";
 
+    # 本 location 承载经 X-Accel-Redirect 代理的 workspace 内容（code-server、
+    # noVNC、挑战容器页面）。这里必须声明自己的 add_header 以阻断对 server 级
+    # 安全头（见 vhost.d/default）的继承：平台 CSP 会拦截 code-server 依赖的
+    # blob: Web Worker，把整个 VS Code 页面打坏。X-Frame-Options SAMEORIGIN
+    # 语义正确：workspace 页面只被平台自身的 iframe 同源嵌入。
+    add_header X-Frame-Options "SAMEORIGIN" always;
+
     proxy_buffering off;
     proxy_http_version 1.1;
     proxy_pass $redirect_uri;
@@ -14,6 +21,10 @@ location = /monitoring {
 }
 
 location /monitoring/ {
+    # Grafana 的资源加载策略由其自身管理；声明自己的 add_header 阻断对
+    # server 级 CSP 等头的继承（见 vhost.d/default），避免与其内联脚本冲突。
+    add_header X-Content-Type-Options "nosniff" always;
+
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

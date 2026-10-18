@@ -9,3 +9,13 @@ location ^~ /.well-known/acme-challenge/ {
 }
 ## End of configuration add by letsencrypt container
 
+# Web 安全响应头（server 级）。注意 nginx 的继承规则：子 location 一旦声明了
+# 自己的 add_header，就不再继承这里的任何头——default_location 中 /internal/
+# 与 /monitoring/ 依赖这一规则做了显式豁免（workspace 代理内容与 Grafana
+# 不应被平台 CSP 约束）。
+add_header Strict-Transport-Security "max-age=31536000" always;
+add_header X-Content-Type-Options "nosniff" always;
+add_header X-Frame-Options "SAMEORIGIN" always;
+add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; frame-src 'self' https://player.bilibili.com https://mudongliang.github.io" always;
+
