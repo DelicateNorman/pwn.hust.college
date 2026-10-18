@@ -13,9 +13,15 @@ location ^~ /.well-known/acme-challenge/ {
 # 自己的 add_header，就不再继承这里的任何头——default_location 中 /internal/
 # 与 /monitoring/ 依赖这一规则做了显式豁免（workspace 代理内容与 Grafana
 # 不应被平台 CSP 约束）。
+#
+# CSP 说明：script-src 的 'unsafe-inline' 是主题内联脚本现状；'unsafe-eval'
+# 不可省略——dev 模式（DOJO_ENV=development，本地测试默认）页面加载 webpack
+# dev bundle（vendor.bundle.dev.js 含 308 处 eval），生产模式加载 min bundle
+# （vendor.bundle.min.js 的 Vue 2 模板编译器使用 new Function）。实测去掉
+# 'unsafe-eval' 后两种模式下前端脚本均在加载后立即抛错（jQuery/$ 未定义）。
 add_header Strict-Transport-Security "max-age=31536000" always;
 add_header X-Content-Type-Options "nosniff" always;
 add_header X-Frame-Options "SAMEORIGIN" always;
 add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; frame-src 'self' https://player.bilibili.com https://mudongliang.github.io" always;
+add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; frame-src 'self' https://player.bilibili.com https://mudongliang.github.io" always;
 
