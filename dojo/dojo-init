@@ -22,6 +22,8 @@ define DOCKER_PSLR $(openssl rand -hex 16)
 define UBUNTU_VERSION 22.04
 define INTERNET_FOR_ALL False
 define ARCH $(dpkg --print-architecture)
+# 生产环境（HTTPS）应改为 true，使会话 cookie 携带 Secure 标志
+define SESSION_COOKIE_SECURE false
 define INSTALL_AFL no # needs compilation
 define INSTALL_ANGR_MANAGEMENT no
 define INSTALL_BURPSUITE no

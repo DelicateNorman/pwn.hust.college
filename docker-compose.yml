@@ -66,6 +66,7 @@ services:
       - REVERSE_PROXY=true
       - SERVER_SENT_EVENTS=false
       - SECRET_KEY=${SECRET_KEY}
+      - SESSION_COOKIE_SECURE=${SESSION_COOKIE_SECURE:-false}
       - DOJO_HOST=${DOJO_HOST}
       - HOST_DATA_PATH=/opt/pwn.college/data
       - INTERNET_FOR_ALL=${INTERNET_FOR_ALL}

@@ -27,6 +27,10 @@ DISCORD_CLIENT_SECRET = os.getenv("DISCORD_CLIENT_SECRET")
 DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 DISCORD_GUILD_ID = os.getenv("DISCORD_GUILD_ID")
 
+# HTTPS 部署应在生产 .env 中置为 true（见 docs/deployment.md）。CTFd 3.6.0 的
+# 配置体系不读取该键（Flask 默认不带 Secure 标志），由 dojo_plugin 注入。
+SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "false").strip().lower() in ("1", "true", "yes", "on")
+
 def create_seccomp():
     seccomp = json.load(pathlib.Path("/etc/docker/seccomp.json").open())
 

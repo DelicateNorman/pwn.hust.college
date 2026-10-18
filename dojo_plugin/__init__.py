@@ -23,7 +23,7 @@ from CTFd.plugins.challenges import CHALLENGE_CLASSES, BaseChallenge
 from CTFd.plugins.flags import FLAG_CLASSES, BaseFlag, FlagException
 
 from .models import Dojos, DojoChallenges, Belts, Emojis, UserProfiles
-from .config import DOJO_HOST, bootstrap
+from .config import DOJO_HOST, bootstrap, SESSION_COOKIE_SECURE
 from .utils import unserialize_user_flag, render_markdown
 from .utils.awards import update_awards
 from .pages.dojos import dojos, dojos_override
@@ -176,6 +176,12 @@ def protect_student_id_and_validate_name():
 
 def load(app):
     db.create_all()
+
+    # CTFd 3.6.0 不读取 SESSION_COOKIE_SECURE，Flask 默认 session cookie 不带
+    # Secure 标志。此处直接赋值：Flask 2.2.5 的 default_config 自带
+    # SESSION_COOKIE_SECURE=False，setdefault 与 None 判断均无法生效；CTFd
+    # 配置体系也未提供该键，docker-compose 注入的环境变量即唯一配置来源。
+    app.config["SESSION_COOKIE_SECURE"] = SESSION_COOKIE_SECURE
 
     CHALLENGE_CLASSES["dojo"] = DojoChallenge
     FLAG_CLASSES["dojo"] = DojoFlag

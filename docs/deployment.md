@@ -82,6 +82,8 @@ dojo compose down
 dojo update
 ```
 
+HTTPS 部署还应将 `data/config.env` 中的 `SESSION_COOKIE_SECURE` 置为 `true`，使会话 cookie 携带 `Secure` 标志（浏览器仅经 HTTPS 回传会话，避免重定向到 HTTPS 前的明文泄漏）。修改后执行 `dojo compose up -d` 重建 ctfd 容器生效。以 HTTP 访问的本地/测试部署应保持默认值 `false`，否则浏览器将无法登录。
+
 ## 更新 (Updating)
 
 当更新你的 dojo 部署时，在 `dojo` 源码目录下，官方只支持一种方法：
