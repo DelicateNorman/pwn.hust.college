@@ -97,24 +97,62 @@ MariaDB 端口 `13306` 仅绑定在宿主机回环地址（`127.0.0.1:13306:3306
 
 **Docker Engine 版本要求**：Docker Engine 28.0.0 之前的版本存在已知风险——同一二层（L2）网络内的其他主机仍可能直接访问绑定到回环地址的发布端口（28.0.0 起默认网络加固修复了该行为，参见 Docker 官方博客 [Hardening Container Networking by Default](https://www.docker.com/blog/docker-engine-28-hardening-container-networking-by-default)）。生产部署请使用 Docker Engine ≥ 28.0.0，或确保宿主机处于受信任的网络分段。
 
-### 已有部署的密码轮换
+### 已有部署的密码轮换（含备份验证与回滚）
 
-`MYSQL_*` 环境变量只在数据库卷首次初始化时生效。对已有 `data/mysql` 卷的部署，按以下步骤轮换密码：
+`MYSQL_*` 环境变量只在数据库卷首次初始化时生效。对已有 `data/mysql` 卷的部署，按以下流程轮换——legacy 升级部署的 root 密码仍是历史值 `ctfd`，建议与应用密码一并轮换。
+
+#### 第 1 步：备份并验证备份可用
 
 ```sh
-# 1. 在数据库中修改密码（用旧密码连接）
-docker exec -it db mysql -p -e "ALTER USER 'ctfd'@'%' IDENTIFIED BY '<新密码>'; FLUSH PRIVILEGES;"
+# dojo backup 失败时会清理部分输出并以非零退出，成功会打印文件名
+dojo backup
 
-# 2. 写入新的部署配置
-#    在宿主机 dojo 目录的 data/config.env 中加入：
-#    MYSQL_PASSWORD=<新密码>
-
-# 3. 重建受影响的服务
-dojo compose up -d ctfd db
-
-# 4. mysql exporter 的凭据文件（data/mysql-exporter/.my.cnf）由 dojo-init
-#    在容器启动时自动生成，重启 dojo 容器即自动同步，无需手工修改
+# 用临时 MariaDB 实例做恢复演练（不触碰生产数据）
+docker run -d --name verify-db -e MYSQL_ROOT_PASSWORD=verifyonly mariadb:10.4.12
+docker exec verify-db sh -c 'until mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -e "SELECT 1" 2>/dev/null; do sleep 1; done'
+gunzip < data/backups/<备份文件名>.sql.gz | docker exec -i verify-db mysql -uroot -pverifyonly ctfd
+docker exec verify-db mysql -uroot -pverifyonly -e "SELECT COUNT(*) FROM ctfd.users;"
+docker rm -f verify-db
+# 能查出 users 计数即备份可用；否则先解决备份问题，不要继续轮换
 ```
+
+#### 第 2 步：在数据库中同时轮换应用密码与 root 密码
+
+```sh
+# 用当前生效的 root 密码连接（legacy 部署为 ctfd）
+docker exec -i db sh -c 'exec mysql -uroot -p"$MYSQL_ROOT_PASSWORD"' <<'SQL'
+ALTER USER 'ctfd'@'%' IDENTIFIED BY '<新应用密码>';
+ALTER USER 'root'@'%' IDENTIFIED BY '<新root密码>';
+ALTER USER 'root'@'localhost' IDENTIFIED BY '<新root密码>';
+FLUSH PRIVILEGES;
+SQL
+```
+
+#### 第 3 步：写入新配置并重建服务
+
+```sh
+# 在 data/config.env 中更新（两个都要）：
+#   MYSQL_PASSWORD=<新应用密码>
+#   MYSQL_ROOT_PASSWORD=<新root密码>
+# 只允许字母数字与 . _ - ~（dojo-init 会在下次启动校验并拒绝其他字符）
+
+dojo compose up -d ctfd db    # db 容器以新环境变量重建
+# mysql exporter 的凭据（data/mysql-exporter/.my.cnf）由 dojo-init 重建，
+# 轮换当次如需立即同步：手工按新 root 密码更新该文件，或重启 dojo 容器
+```
+
+#### 第 4 步：验证
+
+```sh
+dojo db -e "SELECT 1;"        # 验证 root 链路（dojo CLI 读容器内新环境变量）
+```
+
+另需在平台网页登录一次（验证 CTFd 用新应用密码连库），并确认 Prometheus targets 中 mysqld-exporter 状态为 UP。
+
+#### 回滚（按失败场景二选一）
+
+- *配置错误 / 服务起不来*（数据库本身正常）：把 `data/config.env` 改回旧值，重新 `dojo compose up -d ctfd db`，再验证登录。此场景数据未动，无需使用备份。
+- *数据库层异常*：先用当前可用的 root 密码把数据库密码改回旧值（同第 2 步的 ALTER 语句反向执行），更新 `data/config.env` 为旧值并重建服务；若数据受损，再执行 `dojo restore <备份文件名>`（路径相对 `data/backups`）。
 
 ## 更新 (Updating)
 
